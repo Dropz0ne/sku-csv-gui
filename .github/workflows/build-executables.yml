@@ -1,10 +1,14 @@
-name: Build Executables
+name: Build and Release Executables
 
 # Runs whenever you push to main, or manually from the Actions tab
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
+# Needed so the built-in GITHUB_TOKEN is allowed to create releases
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -53,3 +57,25 @@ jobs:
         with:
           name: SKU_CSV_Generator-linux
           path: dist/SKU_CSV_Generator
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      # Downloads every artifact from this run into artifacts/<artifact-name>/...
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Show downloaded files
+        run: ls -R artifacts
+
+      - name: Create GitHub Release with both builds attached
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          files: |
+            artifacts/SKU_CSV_Generator-windows/SKU_CSV_Generator.exe
+            artifacts/SKU_CSV_Generator-linux/SKU_CSV_Generator
